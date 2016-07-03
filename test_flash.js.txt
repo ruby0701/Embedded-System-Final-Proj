@@ -1,0 +1,286 @@
+// Creates a websocket with socket.io
+// Make sure to install socket.io: terminal, goto /var/lib/cloud9 and enter: npm install socket.io
+// Installing this takes a few minutes; wait until the installation is complete
+
+var app = require('http').createServer(handler);
+var io = require('socket.io').listen(app);
+var fs = require('fs');
+var b = require('bonescript');
+
+app.listen(8888);
+// socket.io options go here
+io.set('log level', 2);   // reduce logging - set 1 for warn, 2 for info, 3 for debug
+io.set('browser client minification', true);  // send minified client
+io.set('browser client etag', true);  // apply etag caching logic based on version number
+
+console.log('Server running on: http://' + getIPAddress() + ':8888');
+
+var ledRed = "P8_19";
+var ledGreen = "P8_13";
+var ledBlue = "P9_14";
+var demoMode = false;
+var demoStep = 0;
+var demoCount = 0;
+var flashMode = false;
+var flashStep = 0;
+var flashCount = 0;
+var ledDir = 0;
+var ledBright = 0;
+
+
+// configure pins and set all low
+b.pinMode(ledRed, b.OUTPUT);
+b.pinMode(ledGreen, b.OUTPUT);
+b.pinMode(ledBlue, b.OUTPUT);
+b.analogWrite(ledRed,1);
+b.analogWrite(ledBlue,1);
+b.analogWrite(ledGreen,1);
+
+function handler (req, res) {
+  if (req.url == "/favicon.ico"){   // handle requests for favico.ico
+  res.writeHead(200, {'Content-Type': 'image/x-icon'} );
+  res.end();
+  console.log('favicon requested');
+  return;
+  }
+  fs.readFile('test_flash.html',    // load html file
+  function (err, data) {
+    if (err) {
+      res.writeHead(500);
+      return res.end('Error loading index.html');
+    }
+    res.writeHead(200);
+    res.end(data);
+  });
+}
+ 
+io.sockets.on('connection', function (socket) {
+  // listen to sockets and write analog values to LED's
+  socket.on('ledRed', function (data) {
+    b.analogWrite(ledRed, 1-(data/100));
+//    console.log('Red: ' + data);
+  });
+  socket.on('ledGreen', function (data) {
+    b.analogWrite(ledGreen, 1-(data/100));
+//    console.log('Green: ' + data);
+  });
+  socket.on('ledBlue', function (data) {
+    b.analogWrite(ledBlue, 1-(data/100));
+//    console.log('Blue: ' + data);
+  });
+  socket.on('demo', function (data) {
+//    console.log("Demo: " + data);
+    // switch mode
+    if (data == 'on') {
+       demoMode = true;
+       runDemo();
+    } else if (data == 'off') {
+       demoMode = false;
+       led(1,1,1);
+    }
+  });
+/////////////////////////////////////////////////////////////////////////  
+  socket.on('redflash', function (data) {
+//    console.log("RED: " + data);
+    // switch mode
+    if (data == 'on') {
+       flashMode = true;
+       runRedFlash();
+    } else if (data == 'off') {
+       flashMode = false;
+       led(1,1,1);
+    }
+  });
+socket.on('blueflash', function (data) {
+//    console.log("BLUE: " + data);
+    // switch mode
+    if (data == 'on') {
+       flashMode = true;
+       runBlueFlash();
+    } else if (data == 'off') {
+       flashMode = false;
+       led(1,1,1);
+    }
+  });
+socket.on('greenflash', function (data) {
+//    console.log("GREEN: " + data);
+    // switch mode
+    if (data == 'on') {
+       flashMode = true;
+       runGreenFlash();
+    } else if (data == 'off') {
+       flashMode = false;
+       led(1,1,1);
+    }
+  });
+});
+///////////////////////////////////////////////////////////////////////////////////
+setInterval(runDemo, 10);
+function runDemo() {
+  if (demoMode === true){
+    switch (demoStep){
+      case 0:
+        led(0,1,1);
+        break;
+      case 1:
+        led(1,0,1);
+        break;
+      case 2:
+        led(1,1,0);
+        break;
+      case 3:
+        led(ledBright,1,1);
+        break;
+      case 4:
+        led(1,ledBright,1);
+        break;
+      case 5:
+        led(1,1,ledBright);       
+        break;
+      case 6:
+        led(ledBright,ledBright,ledBright);
+        break;
+      case 7:
+        led(ledBright,ledBright,ledBright);
+        break;
+      case 8:
+        demoStep = 0;         
+        break;
+    }
+
+    demoCount++;
+    if (demoCount>100){
+      demoStep++;
+      demoCount=0;
+    }
+    if (ledDir===0) ledBright=ledBright+0.02;
+    else ledBright = ledBright-0.02;
+    if (ledBright>1) ledDir=1;
+    if (ledBright<0) ledDir=0;
+  }
+}
+
+//flash part functions
+//////////////////////////////////////////////////////////////////////////////////////////////
+setInterval(runRedFlash, 10);
+function runRedFlash() {
+  if (flashMode === true){
+    switch (flashStep){
+      case 0:
+        led(0,1,1);
+        led(0,1,1);
+        led(0,0,0);
+        
+        led(0,1,1);
+        led(0,1,1);
+        led(0,0,0);
+        
+        led(0,1,1);
+        led(0,1,1);
+        led(0,0,0);
+        
+        led(0,1,1);
+        led(0,1,1);
+        led(0,0,0);
+  
+      case 1:
+        flashStep = 0;         
+        break;
+    }
+
+    flashCount++;
+    if (flashCount>100){
+      flashStep++;
+      flashCount=0;
+    }
+  }
+}
+//////////////////////////////////////////////////////////////////////////////////
+setInterval(runBlueFlash, 10);
+function runBlueFlash() {
+  if (flashMode === true){
+    switch (flashStep){
+      case 0:
+        led(1,0,1);
+        led(1,0,1);
+        led(0,0,0);
+     
+        led(1,0,1);
+        led(1,0,1);
+        led(0,0,0);
+        
+        led(1,0,1);
+        led(1,0,1);
+        led(0,0,0);
+        
+        
+        led(1,0,1);
+        led(1,0,1);
+        led(0,0,0);
+  
+      case 1:
+        flashStep = 0;         
+        break;
+    }
+
+    flashCount++;
+    if (flashCount>100){
+      flashStep++;
+      flashCount=0;
+    }
+  }
+}
+
+setInterval(runGreenFlash, 10);
+function runGreenFlash() {
+  if (flashMode === true){
+    switch (flashStep){
+      case 0:
+        led(1,1,0);
+        led(1,1,0);
+        led(0,0,0);
+        
+        led(1,1,0);
+        led(1,1,0);
+        led(0,0,0);
+        
+        led(1,1,0);
+        led(1,1,0);
+        led(0,0,0);
+        
+        led(1,1,0);
+        led(1,1,0);
+        led(0,0,0);
+        
+      case 1:
+        flashStep = 0;         
+        break;
+    }
+
+    flashCount++;
+    if (flashCount>100){
+      flashStep++;
+      flashCount=0;
+    }
+  }
+}
+
+function led(red, blue, green){
+  b.analogWrite(ledRed, red);
+  b.analogWrite(ledBlue, blue);
+  b.analogWrite(ledGreen, green);  
+    }
+
+// Get server IP address on LAN
+function getIPAddress() {
+  var interfaces = require('os').networkInterfaces();
+  for (var devName in interfaces) {
+    var iface = interfaces[devName];
+    for (var i = 0; i < iface.length; i++) {
+      var alias = iface[i];
+      if (alias.family === 'IPv4' && alias.address !== '127.0.0.1' && !alias.internal)
+        return alias.address;
+    }
+  }
+  return '0.0.0.0';
+}
